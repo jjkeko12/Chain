@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHAIN - QTE FIGHT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Grain overlay -->
+    <div class="grain"></div>
+    <div class="vignette"></div>
+
+    <!-- MENU SCREEN -->
+    <section id="menu-screen" class="screen active">
+      <div class="menu-bg">
+        <div class="chain-links"></div>
+        <div class="chains-silhouette"></div>
+      </div>
+
+      <div class="menu-content">
+        <h1 class="title glitch" data-text="CHAIN">CHAIN</h1>
+        <p class="subtitle">QTE FIGHT // SURVIVE HIM</p>
+        
+        <div class="menu-buttons">
+          <button id="play-btn" class="btn primary">▶ PLAY</button>
+          <button id="settings-btn" class="btn">⚙ SETTINGS</button>
+          <button id="howto-btn" class="btn">? HOW TO PLAY</button>
+        </div>
+
+        <div class="menu-footer">
+          <p>Inspired by Roblox Chain - Final Fight</p>
+          <p class="small">Press A-Z only. No Space. No Symbols. Just survive.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="game-screen" class="screen">
+      <!-- HUD -->
+      <div class="hud">
+        <div class="health-bars">
+          <div class="health-group player-hp">
+            <span class="label">YOU</span>
+            <div class="hp-bar"><div id="player-hp-fill" class="hp-fill"></div></div>
+            <span id="player-hp-text" class="hp-text">100%</span>
+          </div>
+          <div class="health-group chain-hp">
+            <span class="label">CHAIN</span>
+            <div class="hp-bar"><div id="chain-hp-fill" class="hp-fill chain"></div></div>
+            <span id="chain-hp-text" class="hp-text">100%</span>
+          </div>
+        </div>
+        <div class="stats">
+          <div>STREAK: <span id="streak">0</span></div>
+          <div>SCORE: <span id="score">0</span></div>
+          <div>ROUND: <span id="round">1/10</span></div>
+        </div>
+      </div>
+
+      <!-- Arena -->
+      <div id="arena" class="arena">
+        <div id="chain-entity" class="chain-entity">
+          <div class="chain-face">☺</div>
+          <div class="chain-body"></div>
+        </div>
+        <div id="qte-container" class="qte-container">
+          <!-- QTE prompt injected here -->
+        </div>
+        <div id="feedback" class="feedback"></div>
+      </div>
+
+      <div class="game-hint">PRESS THE LETTER BEFORE TIME RUNS OUT</div>
+    </section>
+
+    <!-- RESULT SCREEN -->
+    <section id="result-screen" class="screen">
+      <div class="result-content">
+        <h2 id="result-title" class="result-title">YOU SURVIVED</h2>
+        <p id="result-desc" class="result-desc"></p>
+        <div class="result-stats">
+          <div>Final Score: <span id="final-score">0</span></div>
+          <div>Best Streak: <span id="best-streak">0</span></div>
+          <div>Accuracy: <span id="accuracy">0%</span></div>
+        </div>
+        <div class="menu-buttons">
+          <button id="retry-btn" class="btn primary">FIGHT AGAIN</button>
+          <button id="menu-return-btn" class="btn">MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal">
+      <div class="modal-content">
+        <h2>CONFIGURATION</h2>
+        
+        <div class="setting-group">
+          <h3>QTE EFFECTS</h3>
+          <label class="setting">
+            <div class="setting-label">
+              <span>Shake Intensity</span>
+              <span class="value" id="shake-value">60%</span>
+            </div>
+            <input type="range" id="shake-intensity" min="0" max="100" value="60">
+          </label>
+          <label class="setting checkbox">
+            <input type="checkbox" id="shake-enabled" checked>
+            <span>Enable Shake (like Chain fight)</span>
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Moving Intensity</span>
+              <span class="value" id="move-value">50%</span>
+            </div>
+            <input type="range" id="move-intensity" min="0" max="100" value="50">
+          </label>
+          <label class="setting checkbox">
+            <input type="checkbox" id="move-enabled" checked>
+            <span>Enable Moving / Drifting Keys</span>
+          </label>
+        </div>
+
+        <div class="setting-group">
+          <h3>GAMEPLAY</h3>
+          <label class="setting">
+            <div class="setting-label">
+              <span>QTE Time Window</span>
+              <span class="value" id="time-value">1.5s</span>
+            </div>
+            <input type="range" id="qte-time" min="500" max="3000" step="100" value="1500">
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Difficulty</span>
+              <span class="value" id="diff-value">NORMAL</span>
+            </div>
+            <select id="difficulty">
+              <option value="easy">EASY - Slow, forgiving</option>
+              <option value="normal" selected>NORMAL - Chain's pace</option>
+              <option value="hard">HARD - Chain is angry</option>
+              <option value="chain">CHAIN - Impossible</option>
+            </select>
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Rounds to Win</span>
+              <span class="value" id="rounds-value">10</span>
+            </div>
+            <input type="range" id="rounds" min="5" max="25" value="10">
+          </label>
+
+          <label class="setting checkbox">
+            <input type="checkbox" id="sound-enabled" checked>
+            <span>Enable Sound (WebAudio)</span>
+          </label>
+        </div>
+
+        <div class="setting-group">
+          <h3>KEYS</h3>
+          <p class="small">All 26 letters A-Z are active. No space, no symbols. As requested.</p>
+          <div class="keys-preview" id="keys-preview"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="settings-close" class="btn primary">SAVE & CLOSE</button>
+          <button id="settings-reset" class="btn small">Reset Defaults</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW TO MODAL -->
+    <div id="howto-modal" class="modal">
+      <div class="modal-content">
+        <h2>HOW TO FIGHT CHAIN</h2>
+        <div class="howto-content">
+          <p>This recreates the final fight from Roblox <strong>CHAIN</strong>.</p>
+          <ol>
+            <li><strong>Click PLAY</strong> to enter the arena.</li>
+            <li>A <span class="highlight">RANDOM LETTER A-Z</span> will appear with a shrinking circle.</li>
+            <li><strong>Press that letter on your keyboard</strong> before time runs out.</li>
+            <li>Success damages CHAIN. Failure damages YOU.</li>
+            <li><strong>Shake:</strong> The prompt violently shakes - intensity is configurable.</li>
+            <li><strong>Moving:</strong> The prompt drifts around the arena - intensity is configurable.</li>
+            <li>Survive <span id="howto-rounds">10</span> rounds to win.</li>
+          </ol>
+          <p class="small">Tip: Higher shake + moving = closer to real Chain experience. Try CHAIN difficulty.</p>
+          <p class="small">Keys: Only A-Z accepted. Space and symbols are ignored.</p>
+        </div>
+        <button id="howto-close" class="btn primary">GOT IT</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
