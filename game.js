@@ -1,14 +1,14 @@
 /* CHAIN - INFINITE BAR QTE with ramp toggle */
 
 const DEFAULT_CONFIG = {
-  shakeIntensity: 65,
+  shakeIntensity: 45,
   shakeEnabled: true,
   maxMisses: 3,
-  holdDuration: 4000,
-  drainSpeed: 35,
-  fillAmount: 12,
+  holdDuration: 3000,
+  drainSpeed: 40,
+  fillAmount: 10,
   difficulty: 'normal',
-  rampEnabled: true,
+  rampEnabled: false,
   rampSpeed: 5,
   restTime: 1500,
   soundEnabled: true,
@@ -77,19 +77,11 @@ const howtoModal = $('#howto-modal');
 
 function loadConfig() {
   try {
-    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v5'));
+    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v6'));
     if (saved) config = { ...DEFAULT_CONFIG, ...saved };
   } catch {}
-  // migrate v4
-  try {
-    const v4 = JSON.parse(localStorage.getItem('chain-qte-config-v4'));
-    if (v4 && !localStorage.getItem('chain-qte-config-v5')) {
-      config = { ...DEFAULT_CONFIG, ...v4, rampEnabled: v4.rampSpeed > 0 ? true : false };
-      if (config.rampSpeed === 0) { config.rampEnabled = false; config.rampSpeed = 5; }
-    }
-  } catch {}
 }
-function saveConfig() { localStorage.setItem('chain-qte-config-v5', JSON.stringify(config)); }
+function saveConfig() { localStorage.setItem('chain-qte-config-v6', JSON.stringify(config)); }
 
 function applyConfigToUI() {
   $('#shake-intensity').value = config.shakeIntensity;
