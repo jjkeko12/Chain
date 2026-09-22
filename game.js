@@ -1,15 +1,14 @@
-/* CHAIN - BAR QTE FIGHT
- * Spam mechanic: keep bar alive while screen shakes
+/* CHAIN - BAR QTE SIMPLIFIED
+ * No health bars, miss count 0/3, centered, realistic boxes, shake kept
  */
 
 const DEFAULT_CONFIG = {
-  shakeIntensity: 60,
+  shakeIntensity: 65,
   shakeEnabled: true,
-  moveIntensity: 50,
-  moveEnabled: true,
-  holdDuration: 4000, // ms to survive per round
-  drainSpeed: 35, // % per second
-  fillAmount: 12, // % per correct spam
+  maxMisses: 3,
+  holdDuration: 4000,
+  drainSpeed: 35,
+  fillAmount: 12,
   difficulty: 'normal',
   rounds: 10,
   restTime: 1500,
@@ -17,10 +16,10 @@ const DEFAULT_CONFIG = {
 };
 
 const DIFFICULTY_MODS = {
-  easy:   { drainMul: 0.55, fillMul: 1.5, holdMul: 0.8, playerDmg: 10, chainDmgMul: 1.25, shakeMul: 0.6, moveMul: 0.6 },
-  normal: { drainMul: 1.0,  fillMul: 1.0, holdMul: 1.0, playerDmg: 15, chainDmgMul: 1.0,  shakeMul: 1.0, moveMul: 1.0 },
-  hard:   { drainMul: 1.45, fillMul: 0.8, holdMul: 1.2, playerDmg: 22, chainDmgMul: 0.85, shakeMul: 1.4, moveMul: 1.4 },
-  chain:  { drainMul: 2.1,  fillMul: 0.6, holdMul: 1.45, playerDmg: 30, chainDmgMul: 0.7,  shakeMul: 2.2, moveMul: 2.0 },
+  easy:   { drainMul: 0.6, fillMul: 1.5, holdMul: 0.85, shakeMul: 0.6 },
+  normal: { drainMul: 1.0, fillMul: 1.0, holdMul: 1.0,  shakeMul: 1.0 },
+  hard:   { drainMul: 1.45, fillMul: 0.8, holdMul: 1.2,  shakeMul: 1.4 },
+  chain:  { drainMul: 2.05, fillMul: 0.6, holdMul: 1.4,  shakeMul: 2.0 },
 };
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -28,8 +27,8 @@ const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 let config = { ...DEFAULT_CONFIG };
 let gameState = {
   playing: false,
-  playerHP: 100,
-  chainHP: 100,
+  misses: 0,
+  maxMisses: 3,
   score: 0,
   streak: 0,
   bestStreak: 0,
@@ -38,10 +37,9 @@ let gameState = {
   successes: 0,
   failures: 0,
   currentLetter: null,
-  barValue: 50,
+  barValue: 55,
   qteActive: false,
   qteStartTime: 0,
-  qteElapsed: 0,
   holdDuration: 4000,
   drainPerSec: 35,
   fillPerPress: 12,
@@ -51,31 +49,25 @@ let gameState = {
   avgBarCount: 0,
   lastPressTime: 0,
   raf: null,
-  moveRaf: null,
   intermissionTimer: null,
 };
 
 let audioCtx = null;
-
-// DOM
 const $ = s => document.querySelector(s);
+
 const menuScreen = $('#menu-screen');
 const gameScreen = $('#game-screen');
 const resultScreen = $('#result-screen');
-const arena = $('#arena');
 const qteContainer = $('#qte-container');
-const chainEntity = $('#chain-entity');
 const feedbackEl = $('#feedback');
 const intermissionEl = $('#intermission');
 const intermissionTimeEl = $('#intermission-time');
 
-const playerHpFill = $('#player-hp-fill');
-const chainHpFill = $('#chain-hp-fill');
-const playerHpText = $('#player-hp-text');
-const chainHpText = $('#chain-hp-text');
-const streakEl = $('#streak');
-const scoreEl = $('#score');
+const missDotsEl = $('#miss-dots');
+const missCountEl = $('#miss-count');
+const missMaxEl = $('#miss-max');
 const roundEl = $('#round');
+const streakEl = $('#streak');
 const spamsEl = $('#spams');
 
 const settingsModal = $('#settings-modal');
@@ -84,32 +76,32 @@ const howtoModal = $('#howto-modal');
 // Config
 function loadConfig() {
   try {
-    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v2'));
+    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v3'));
     if (saved) config = { ...DEFAULT_CONFIG, ...saved };
   } catch {}
-  // migrate old
+  // migrate older
   try {
-    const old = JSON.parse(localStorage.getItem('chain-qte-config'));
-    if (old && !localStorage.getItem('chain-qte-config-v2')) {
-      config.shakeIntensity = old.shakeIntensity ?? config.shakeIntensity;
-      config.shakeEnabled = old.shakeEnabled ?? config.shakeEnabled;
-      config.moveIntensity = old.moveIntensity ?? config.moveIntensity;
-      config.moveEnabled = old.moveEnabled ?? config.moveEnabled;
-      config.difficulty = old.difficulty ?? config.difficulty;
-      config.rounds = old.rounds ?? config.rounds;
+    const v2 = JSON.parse(localStorage.getItem('chain-qte-config-v2'));
+    if (v2 && !localStorage.getItem('chain-qte-config-v3')) {
+      config.shakeIntensity = v2.shakeIntensity ?? config.shakeIntensity;
+      config.shakeEnabled = v2.shakeEnabled ?? config.shakeEnabled;
+      config.holdDuration = v2.holdDuration ?? config.holdDuration;
+      config.drainSpeed = v2.drainSpeed ?? config.drainSpeed;
+      config.fillAmount = v2.fillAmount ?? config.fillAmount;
+      config.difficulty = v2.difficulty ?? config.difficulty;
+      config.rounds = v2.rounds ?? config.rounds;
+      config.restTime = v2.restTime ?? config.restTime;
+      config.soundEnabled = v2.soundEnabled ?? config.soundEnabled;
     }
   } catch {}
 }
-function saveConfig() {
-  localStorage.setItem('chain-qte-config-v2', JSON.stringify(config));
-}
+function saveConfig() { localStorage.setItem('chain-qte-config-v3', JSON.stringify(config)); }
 function applyConfigToUI() {
   $('#shake-intensity').value = config.shakeIntensity;
   $('#shake-value').textContent = config.shakeIntensity + '%';
   $('#shake-enabled').checked = config.shakeEnabled;
-  $('#move-intensity').value = config.moveIntensity;
-  $('#move-value').textContent = config.moveIntensity + '%';
-  $('#move-enabled').checked = config.moveEnabled;
+  $('#max-misses').value = config.maxMisses;
+  $('#maxmiss-value').textContent = config.maxMisses;
   $('#hold-duration').value = config.holdDuration;
   $('#hold-value').textContent = (config.holdDuration/1000).toFixed(1)+'s';
   $('#drain-speed').value = config.drainSpeed;
@@ -125,14 +117,12 @@ function applyConfigToUI() {
   $('#sound-enabled').checked = config.soundEnabled;
   $('#howto-hold').textContent = (config.holdDuration/1000).toFixed(1)+'s';
   $('#howto-rounds').textContent = config.rounds;
+  $('#howto-miss').textContent = config.maxMisses;
   renderKeysPreview();
 }
 function renderKeysPreview() {
-  const c = $('#keys-preview');
-  c.innerHTML = '';
-  LETTERS.forEach(l=>{
-    const s=document.createElement('span'); s.textContent=l; c.appendChild(s);
-  });
+  const c = $('#keys-preview'); c.innerHTML='';
+  LETTERS.forEach(l=>{ const s=document.createElement('span'); s.textContent=l; c.appendChild(s); });
 }
 
 // Audio
@@ -149,19 +139,18 @@ function playTone(freq,dur,type='sine',vol=0.2){
   o.connect(g); g.connect(ctx.destination);
   o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur); o.stop(ctx.currentTime+dur);
 }
-function sfxSpam(){ playTone(600+Math.random()*200,0.08,'square',0.15); }
-function sfxSpamGood(){ playTone(900,0.12,'sine',0.2); }
-function sfxDrainWarn(){ playTone(120,0.2,'sawtooth',0.12); }
-function sfxSuccess(){ playTone(800,0.15,'sine',0.3); setTimeout(()=>playTone(1200,0.25,'sine',0.25),80); }
-function sfxFail(){ playTone(150,0.4,'sawtooth',0.3); setTimeout(()=>playTone(70,0.5,'sawtooth',0.3),120); }
-function sfxSpawn(){ playTone(350,0.12,'triangle',0.2); }
+function sfxSpam(){ playTone(620+Math.random()*180,0.07,'square',0.14); }
+function sfxSpamGood(){ playTone(920,0.11,'sine',0.2); }
+function sfxWarn(){ playTone(130,0.18,'sawtooth',0.13); }
+function sfxSuccess(){ playTone(800,0.14,'sine',0.28); setTimeout(()=>playTone(1200,0.22,'sine',0.22),70); }
+function sfxFail(){ playTone(160,0.35,'sawtooth',0.28); setTimeout(()=>playTone(80,0.45,'sawtooth',0.28),110); }
+function sfxSpawn(){ playTone(380,0.1,'triangle',0.18); }
 
-// Screen shake
-function triggerScreenShake(intensity=10){
+function triggerScreenShake(intensity=8){
   const app=$('#app');
   app.style.setProperty('--screen-shake', intensity+'px');
   app.classList.remove('shake-screen'); void app.offsetWidth; app.classList.add('shake-screen');
-  setTimeout(()=>app.classList.remove('shake-screen'), 300);
+  setTimeout(()=>app.classList.remove('shake-screen'), 260);
 }
 
 // Screens
@@ -173,8 +162,8 @@ function showScreen(name){
 }
 
 function resetGame(){
-  gameState.playerHP=100;
-  gameState.chainHP=100;
+  gameState.misses=0;
+  gameState.maxMisses=config.maxMisses;
   gameState.score=0;
   gameState.streak=0;
   gameState.bestStreak=0;
@@ -194,20 +183,19 @@ function startGame(){
   resetGame();
   gameState.playing=true;
   showScreen('game');
-  setTimeout(spawnQTE, 600);
+  setTimeout(spawnQTE, 500);
 }
 
 function endGame(win){
   gameState.playing=false;
   cancelAnimationFrame(gameState.raf);
-  cancelAnimationFrame(gameState.moveRaf);
   clearInterval(gameState.intermissionTimer);
   qteContainer.innerHTML='';
   intermissionEl.classList.remove('show');
 
   const title=$('#result-title');
   const desc=$('#result-desc');
-  $('#final-score').textContent=gameState.score;
+  $('#final-misses').textContent=`${gameState.misses}/${gameState.maxMisses}`;
   $('#best-streak').textContent=gameState.bestStreak;
   $('#total-spams').textContent=gameState.totalSpams;
   const avg = gameState.avgBarCount ? Math.round(gameState.avgBarSum/gameState.avgBarCount) : 0;
@@ -216,31 +204,33 @@ function endGame(win){
   if(win){
     title.textContent='YOU ESCAPED';
     title.className='result-title win';
-    desc.textContent=`You kept the bar alive through ${gameState.successes} struggles! Total spams: ${gameState.totalSpams}. Chain couldn't hold you.`;
+    desc.textContent=`You survived ${gameState.successes} rounds with only ${gameState.misses} miss${gameState.misses!==1?'es':''}. ${gameState.totalSpams} spams kept the bar alive.`;
     sfxSuccess();
   }else{
     title.textContent='CHAINED';
     title.className='result-title lose';
-    desc.textContent=`Chain drained you. Survived ${gameState.successes}/${gameState.totalRounds} rounds. ${gameState.totalSpams} desperate spams.`;
+    desc.textContent=`Missed ${gameState.misses}/${gameState.maxMisses}. You held ${gameState.successes} rounds. The bar drained you.`;
     sfxFail();
   }
   showScreen('result');
 }
 
 function updateHUD(){
-  playerHpFill.style.width=Math.max(0,gameState.playerHP)+'%';
-  chainHpFill.style.width=Math.max(0,gameState.chainHP)+'%';
-  playerHpText.textContent=Math.max(0,Math.round(gameState.playerHP))+'%';
-  chainHpText.textContent=Math.max(0,Math.round(gameState.chainHP))+'%';
-  streakEl.textContent=gameState.streak;
-  scoreEl.textContent=gameState.score;
+  // miss dots
+  missDotsEl.innerHTML='';
+  for(let i=0;i<gameState.maxMisses;i++){
+    const dot=document.createElement('div');
+    dot.className='miss-dot'+(i < gameState.misses ? ' filled' : '');
+    missDotsEl.appendChild(dot);
+  }
+  missCountEl.textContent=gameState.misses;
+  missMaxEl.textContent=gameState.maxMisses;
   roundEl.textContent=`${Math.min(gameState.successes+gameState.failures+1, gameState.totalRounds)}/${gameState.totalRounds}`;
+  streakEl.textContent=gameState.streak;
   spamsEl.textContent=gameState.spamsThisRound;
-  if(gameState.chainHP<30) chainEntity.style.filter='brightness(1.5) hue-rotate(-20deg)'; else chainEntity.style.filter='';
 }
 
-// QTE BAR LOGIC
-let moveState=null;
+// QTE - centered realistic boxes
 let lastFrameTime=0;
 let lastShakeTime=0;
 
@@ -250,76 +240,65 @@ function spawnQTE(){
 
   const letter = LETTERS[Math.floor(Math.random()*LETTERS.length)];
   gameState.currentLetter=letter;
-  gameState.barValue=55; // start mid
+  gameState.barValue=55;
   gameState.spamsThisRound=0;
   gameState.qteActive=true;
   gameState.qteStartTime=performance.now();
-  gameState.qteElapsed=0;
   gameState.holdDuration=config.holdDuration * diff.holdMul;
   gameState.drainPerSec=config.drainSpeed * diff.drainMul;
   gameState.fillPerPress=config.fillAmount * diff.fillMul;
 
-  // Build DOM
   qteContainer.innerHTML='';
-  const wrapper=document.createElement('div');
-  wrapper.className='qte-bar-wrapper';
-  wrapper.innerHTML=`
-    <div class="qte-header">
-      <div>
-        <div class="qte-spam-label">SPAM KEY</div>
-        <div class="qte-letter-big" id="qte-letter">${letter}</div>
-      </div>
-      <div style="text-align:right">
-        <div class="qte-spam-label">TIME LEFT</div>
-        <div class="qte-time-left" id="qte-time">${(gameState.holdDuration/1000).toFixed(1)}s</div>
-      </div>
+
+  // Key box - realistic
+  const keyBox=document.createElement('div');
+  keyBox.className='qte-key-box';
+  keyBox.innerHTML=`
+    <div class="bolt-bl"></div><div class="bolt-br"></div>
+    <div class="wear"></div>
+    <div class="qte-key-label">SPAM KEY</div>
+    <div class="qte-key-letter" id="qte-letter">${letter}</div>
+    <div class="qte-key-hint">MASH ${letter}</div>
+  `;
+
+  // Bar box - realistic
+  const barBox=document.createElement('div');
+  barBox.className='qte-bar-box';
+  barBox.innerHTML=`
+    <div class="bolt-bl"></div><div class="bolt-br"></div>
+    <div class="wear"></div>
+    <div class="qte-bar-header">
+      <span class="qte-bar-title">HOLD BAR</span>
+      <span class="qte-bar-time" id="qte-time">${(gameState.holdDuration/1000).toFixed(1)}s</span>
     </div>
     <div class="qte-bar-track">
       <div class="qte-bar-fill" id="qte-fill" style="width:${gameState.barValue}%"></div>
-      <div class="qte-bar-zones"><div></div><div></div><div></div><div></div></div>
+      <div class="qte-bar-segments"><div></div><div></div><div></div><div></div></div>
     </div>
-    <div class="qte-bar-labels"><span>EMPTY</span><span>DANGER</span><span>SAFE</span></div>
-    <div class="qte-spam-hint" id="spam-hint">MASH ${letter} TO SURVIVE!</div>
+    <div class="qte-bar-footer"><span>EMPTY</span><span>CRITICAL</span><span>SAFE</span></div>
+    <div class="qte-bar-hint" id="bar-hint">KEEP IT ALIVE - SPAM ${letter}</div>
   `;
-  qteContainer.appendChild(wrapper);
 
-  const fillEl=wrapper.querySelector('#qte-fill');
-  const timeEl=wrapper.querySelector('#qte-time');
-  const letterEl=wrapper.querySelector('#qte-letter');
-  const hintEl=wrapper.querySelector('#spam-hint');
+  qteContainer.appendChild(keyBox);
+  qteContainer.appendChild(barBox);
 
-  // shake setup
+  const fillEl=barBox.querySelector('#qte-fill');
+  const timeEl=barBox.querySelector('#qte-time');
+
+  // shake setup - both boxes
   if(config.shakeEnabled){
-    const shakeBase=(config.shakeIntensity/100)*14*diff.shakeMul;
-    const shakeDur=Math.max(0.06, 0.18 - (config.shakeIntensity/100)*0.1);
-    wrapper.style.setProperty('--shake-x', shakeBase+'px');
-    wrapper.style.setProperty('--shake-y', (shakeBase*0.6)+'px');
-    wrapper.style.setProperty('--shake-dur', shakeDur+'s');
-    wrapper.classList.add('shake');
-  }
-
-  // moving setup
-  const promptW=380;
-  if(config.moveEnabled){
-    const pad=10;
-    const maxX=arena.clientWidth - promptW - pad*2;
-    const maxY=arena.clientHeight - 180 - pad*2;
-    const x=pad + Math.random()*Math.max(10,maxX);
-    const y=pad + 80 + Math.random()*Math.max(10,maxY);
-    const speedBase=(config.moveIntensity/100)*2.8*diff.moveMul + 0.4;
-    const angle=Math.random()*Math.PI*2;
-    moveState={ x,y, vx:Math.cos(angle)*speedBase, vy:Math.sin(angle)*speedBase, maxX: arena.clientWidth - promptW, maxY: arena.clientHeight - 180 };
-    wrapper.style.left=x+'px'; wrapper.style.top=y+'px'; wrapper.style.position='absolute'; wrapper.style.transform='none';
-    startMovingLoop(wrapper);
-  }else{
-    wrapper.style.left='50%'; wrapper.style.top='50%'; wrapper.style.transform='translate(-50%,-50%)'; wrapper.style.position='absolute';
-    moveState=null;
+    const shakeBase=(config.shakeIntensity/100)*10*diff.shakeMul;
+    const shakeDur=Math.max(0.06, 0.16 - (config.shakeIntensity/100)*0.08);
+    [keyBox, barBox].forEach(el=>{
+      el.style.setProperty('--shake-x', shakeBase+'px');
+      el.style.setProperty('--shake-y', (shakeBase*0.6)+'px');
+      el.style.setProperty('--shake-dur', shakeDur+'s');
+      el.classList.add('shake-real');
+    });
   }
 
   lastFrameTime=performance.now();
   lastShakeTime=performance.now();
-  chainEntity.classList.add('attack');
-  setTimeout(()=>chainEntity.classList.remove('attack'),300);
   sfxSpawn();
 
   function loop(now){
@@ -329,109 +308,76 @@ function spawnQTE(){
     gameState.qteElapsed = now - gameState.qteStartTime;
     const remaining = Math.max(0, gameState.holdDuration - gameState.qteElapsed);
 
-    // drain
     const drainAmount = (gameState.drainPerSec/1000)*delta;
     gameState.barValue = Math.max(0, gameState.barValue - drainAmount);
 
-    // track avg
     gameState.avgBarSum+=gameState.barValue;
     gameState.avgBarCount++;
 
-    // update UI
     fillEl.style.width=gameState.barValue+'%';
     if(gameState.barValue<25){
       fillEl.className='qte-bar-fill';
-      wrapper.classList.add('critical');
-      if(now - lastShakeTime > 180){
-        triggerScreenShake((config.shakeEnabled? (config.shakeIntensity/100)*14 : 5) * diff.shakeMul);
-        if(Math.random()<0.6) sfxDrainWarn();
+      keyBox.classList.add('critical'); barBox.classList.add('critical');
+      if(now - lastShakeTime > 160){
+        triggerScreenShake((config.shakeEnabled? (config.shakeIntensity/100)*12 : 4)*diff.shakeMul);
+        if(Math.random()<0.7) sfxWarn();
         lastShakeTime=now;
       }
     }else if(gameState.barValue<55){
       fillEl.className='qte-bar-fill';
-      wrapper.classList.remove('critical');
-    }else if(gameState.barValue<80){
+      keyBox.classList.remove('critical'); barBox.classList.remove('critical');
+    }else if(gameState.barValue<78){
       fillEl.className='qte-bar-fill good';
-      wrapper.classList.remove('critical');
+      keyBox.classList.remove('critical'); barBox.classList.remove('critical');
     }else{
       fillEl.className='qte-bar-fill great';
-      wrapper.classList.remove('critical');
+      keyBox.classList.remove('critical'); barBox.classList.remove('critical');
     }
 
     timeEl.textContent=(remaining/1000).toFixed(1)+'s';
-    if(remaining<1000) timeEl.style.color='#ff1a1a'; else timeEl.style.color='#fff';
+    if(remaining<1000) timeEl.classList.add('low'); else timeEl.classList.remove('low');
 
-    // periodic screen shake while active (Chain vibe)
-    if(config.shakeEnabled && now - lastShakeTime > 250 + Math.random()*300){
-      const shakeAmt=(config.shakeIntensity/100)*8*diff.shakeMul;
+    if(config.shakeEnabled && now - lastShakeTime > 280 + Math.random()*300){
+      const shakeAmt=(config.shakeIntensity/100)*7*diff.shakeMul;
       triggerScreenShake(shakeAmt);
       lastShakeTime=now;
     }
 
-    // fail?
-    if(gameState.barValue<=0){
-      handleFail();
-      return;
-    }
-    // success hold complete?
-    if(gameState.qteElapsed>=gameState.holdDuration){
-      handleSuccess();
-      return;
-    }
+    if(gameState.barValue<=0){ handleFail(); return; }
+    if(gameState.qteElapsed>=gameState.holdDuration){ handleSuccess(); return; }
 
     gameState.raf=requestAnimationFrame(loop);
   }
   gameState.raf=requestAnimationFrame(loop);
 }
 
-function startMovingLoop(el){
-  cancelAnimationFrame(gameState.moveRaf);
-  function move(){
-    if(!gameState.qteActive || !moveState) return;
-    let {x,y,vx,vy,maxX,maxY}=moveState;
-    x+=vx; y+=vy;
-    if(x<=0 || x>=maxX){ vx*=-1; x=Math.max(0,Math.min(maxX,x)); }
-    if(y<=0 || y>=maxY){ vy*=-1; y=Math.max(0,Math.min(maxY,y)); }
-    if(Math.random()<0.03){ vx+=(Math.random()-0.5)*0.6; vy+=(Math.random()-0.5)*0.6; }
-    moveState.x=x; moveState.y=y; moveState.vx=vx; moveState.vy=vy;
-    el.style.left=x+'px'; el.style.top=y+'px';
-    gameState.moveRaf=requestAnimationFrame(move);
-  }
-  gameState.moveRaf=requestAnimationFrame(move);
-}
-
 function showFeedback(text, success){
   feedbackEl.textContent=text;
   feedbackEl.className='feedback show '+(success?'success':'fail');
-  setTimeout(()=>{ feedbackEl.className='feedback'; }, 700);
+  setTimeout(()=>{ feedbackEl.className='feedback'; }, 750);
 }
 
 function handleSuccess(){
   if(!gameState.qteActive) return;
   gameState.qteActive=false;
   cancelAnimationFrame(gameState.raf);
-  cancelAnimationFrame(gameState.moveRaf);
 
-  const diff=DIFFICULTY_MODS[config.difficulty];
   gameState.successes++;
   gameState.streak++;
   gameState.bestStreak=Math.max(gameState.bestStreak, gameState.streak);
-  // score: based on avg bar + spams + time left bar
-  const scoreAdd = 150 + Math.floor(gameState.barValue*2) + gameState.spamsThisRound*3 + gameState.streak*15;
-  gameState.score+=scoreAdd;
+  gameState.score+= 150 + Math.floor(gameState.barValue*2) + gameState.spamsThisRound*3 + gameState.streak*15;
 
-  const chainDmg=(100/gameState.totalRounds)*diff.chainDmgMul;
-  gameState.chainHP=Math.max(0, gameState.chainHP - chainDmg);
+  const keyBox=qteContainer.querySelector('.qte-key-box');
+  const barBox=qteContainer.querySelector('.qte-bar-box');
+  if(keyBox) keyBox.classList.add('success');
+  if(barBox) barBox.classList.add('success');
 
-  const wrapper=qteContainer.querySelector('.qte-bar-wrapper');
-  if(wrapper) wrapper.classList.add('success');
-  showFeedback(['SURVIVED!','ESCAPED!','HELD ON!','STRONG!'][Math.floor(Math.random()*4)], true);
-  chainEntity.classList.add('hit'); setTimeout(()=>chainEntity.classList.remove('hit'),250);
+  showFeedback(['HELD!','SURVIVED!','KEPT!','STRONG!'][Math.floor(Math.random()*4)], true);
   sfxSuccess();
   updateHUD();
 
-  if(gameState.chainHP<=0 || gameState.successes>=gameState.totalRounds){
-    setTimeout(()=>endGame(true), 700);
+  if(gameState.successes>=gameState.totalRounds){
+    setTimeout(()=>endGame(true), 650);
   }else{
     startIntermission();
   }
@@ -441,31 +387,31 @@ function handleFail(){
   if(!gameState.qteActive) return;
   gameState.qteActive=false;
   cancelAnimationFrame(gameState.raf);
-  cancelAnimationFrame(gameState.moveRaf);
 
-  const diff=DIFFICULTY_MODS[config.difficulty];
   gameState.failures++;
+  gameState.misses++;
   gameState.streak=0;
-  gameState.playerHP=Math.max(0, gameState.playerHP - diff.playerDmg);
 
-  const wrapper=qteContainer.querySelector('.qte-bar-wrapper');
-  if(wrapper) wrapper.classList.add('fail');
+  const keyBox=qteContainer.querySelector('.qte-key-box');
+  const barBox=qteContainer.querySelector('.qte-bar-box');
+  if(keyBox) keyBox.classList.add('fail');
+  if(barBox) barBox.classList.add('fail');
 
-  showFeedback('DRAINED!', false);
+  showFeedback('MISSED!', false);
   sfxFail();
-  const shakeAmt=(config.shakeEnabled? (config.shakeIntensity/100)*20 : 8)*diff.shakeMul;
+  const diff=DIFFICULTY_MODS[config.difficulty];
+  const shakeAmt=(config.shakeEnabled? (config.shakeIntensity/100)*18 : 6)*diff.shakeMul;
   triggerScreenShake(shakeAmt);
-  arena.style.background='rgba(255,0,0,0.12)'; setTimeout(()=>arena.style.background='',200);
   updateHUD();
 
-  if(gameState.playerHP<=0){
-    setTimeout(()=>endGame(false), 700);
+  if(gameState.misses>=gameState.maxMisses){
+    setTimeout(()=>endGame(false), 650);
   }else{
     startIntermission(true);
   }
 }
 
-function startIntermission(isFail=false){
+function startIntermission(){
   qteContainer.innerHTML='';
   intermissionEl.classList.add('show');
   let remaining=config.restTime;
@@ -485,46 +431,34 @@ function startIntermission(isFail=false){
   }, 50);
 }
 
-// Input - spam
 function handleKeyPress(e){
   if(!gameState.playing || !gameState.qteActive) return;
   const key=e.key.toUpperCase();
   if(key.length!==1) return;
-  if(!LETTERS.includes(key)) return; // ignore space/symbols
+  if(!LETTERS.includes(key)) return;
   e.preventDefault();
-
   const now=performance.now();
-  if(now - gameState.lastPressTime < 35) return; // debounce slightly to prevent insane auto-repeat, but still allow fast spam
+  if(now - gameState.lastPressTime < 32) return;
   gameState.lastPressTime=now;
 
   if(key===gameState.currentLetter){
-    // correct spam
     gameState.barValue=Math.min(100, gameState.barValue + gameState.fillPerPress);
     gameState.spamsThisRound++;
     gameState.totalSpams++;
     updateHUD();
-
     const letterEl=$('#qte-letter');
     if(letterEl){ letterEl.classList.remove('pulse'); void letterEl.offsetWidth; letterEl.classList.add('pulse'); }
-
     const fillEl=$('#qte-fill');
-    if(fillEl){
-      fillEl.style.transform='scaleY(1.15)'; setTimeout(()=>fillEl.style.transform='',80);
-    }
-
-    // sfx variant
-    if(gameState.barValue>70) sfxSpamGood(); else sfxSpam();
-
+    if(fillEl){ fillEl.style.transform='scaleY(1.12)'; setTimeout(()=>fillEl.style.transform='',70); }
+    if(gameState.barValue>72) sfxSpamGood(); else sfxSpam();
   }else{
-    // wrong key penalty
     gameState.barValue=Math.max(0, gameState.barValue - 6);
     triggerScreenShake(4);
     showFeedback('WRONG!', false);
-    playTone(100,0.1,'square',0.1);
+    playTone(100,0.09,'square',0.11);
   }
 }
 
-// UI bind
 function bindUI(){
   $('#play-btn').addEventListener('click', startGame);
   $('#settings-btn').addEventListener('click', ()=>settingsModal.classList.add('active'));
@@ -539,8 +473,7 @@ function bindUI(){
 
   $('#shake-intensity').addEventListener('input', (e)=>{ config.shakeIntensity=parseInt(e.target.value); $('#shake-value').textContent=config.shakeIntensity+'%'; });
   $('#shake-enabled').addEventListener('change', (e)=>{ config.shakeEnabled=e.target.checked; });
-  $('#move-intensity').addEventListener('input', (e)=>{ config.moveIntensity=parseInt(e.target.value); $('#move-value').textContent=config.moveIntensity+'%'; });
-  $('#move-enabled').addEventListener('change', (e)=>{ config.moveEnabled=e.target.checked; });
+  $('#max-misses').addEventListener('input', (e)=>{ config.maxMisses=parseInt(e.target.value); $('#maxmiss-value').textContent=config.maxMisses; $('#howto-miss').textContent=config.maxMisses; });
   $('#hold-duration').addEventListener('input', (e)=>{ config.holdDuration=parseInt(e.target.value); $('#hold-value').textContent=(config.holdDuration/1000).toFixed(1)+'s'; $('#howto-hold').textContent=(config.holdDuration/1000).toFixed(1)+'s'; });
   $('#drain-speed').addEventListener('input', (e)=>{ config.drainSpeed=parseInt(e.target.value); $('#drain-value').textContent=config.drainSpeed+'%'; });
   $('#fill-amount').addEventListener('input', (e)=>{ config.fillAmount=parseInt(e.target.value); $('#fill-value').textContent=config.fillAmount+'%'; });
@@ -557,4 +490,4 @@ loadConfig();
 applyConfigToUI();
 bindUI();
 showScreen('menu');
-console.log('CHAIN BAR QTE Ready', config);
+console.log('CHAIN simplified bar QTE ready', config);
