@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CHAIN - BAR QTE</title>
+  <title>CHAIN - INFINITE BAR QTE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
@@ -20,15 +20,15 @@
       <div class="menu-bg"><div class="chain-links"></div><div class="chains-silhouette"></div></div>
       <div class="menu-content">
         <h1 class="title glitch" data-text="CHAIN">CHAIN</h1>
-        <p class="subtitle">SPAM TO SURVIVE</p>
+        <p class="subtitle">INFINITE // NEVER ENDS</p>
         <div class="menu-buttons">
-          <button id="play-btn" class="btn primary">▶ PLAY</button>
+          <button id="play-btn" class="btn primary">▶ PLAY INFINITE</button>
           <button id="settings-btn" class="btn">⚙ SETTINGS</button>
           <button id="howto-btn" class="btn">? HOW TO PLAY</button>
         </div>
         <div class="menu-footer">
-          <p>Bar struggle - Keep it alive. 3 misses and you're chained.</p>
-          <p class="small">A-Z only. Center locked. Pure shake.</p>
+          <p>Endless bar struggle - How long can you spam?</p>
+          <p class="small">∞ rounds, 0/3 misses, difficulty ramps forever. Center locked.</p>
         </div>
       </div>
     </section>
@@ -44,36 +44,40 @@
           </div>
         </div>
         <div class="hud-center">
-          <div class="round-display">ROUND <span id="round">1/10</span></div>
+          <div class="round-display">ROUND <span id="round">1</span> <span class="infinite-badge">∞</span></div>
+          <div class="difficulty-ramp">DRAIN x<span id="drain-multi">1.00</span></div>
         </div>
         <div class="hud-right">
           <div class="stat">STREAK <span id="streak">0</span></div>
           <div class="stat">SPAMS <span id="spams">0</span></div>
+          <div class="stat">SCORE <span id="score">0</span></div>
         </div>
       </div>
 
       <div id="arena" class="arena centered">
         <div id="qte-container" class="qte-container centered"></div>
         <div id="feedback" class="feedback"></div>
-        <div id="intermission" class="intermission">NEXT IN <span id="intermission-time">1.5</span></div>
+        <div id="intermission" class="intermission">NEXT IN <span id="intermission-time">1.5</span> - ROUND <span id="next-round">2</span></div>
       </div>
 
-      <div class="game-hint" id="game-hint">SPAM THE KEY - DON'T LET THE BAR DIE</div>
+      <div class="game-hint" id="game-hint">INFINITE - SPAM TO SURVIVE - GETS HARDER EACH ROUND</div>
     </section>
 
     <!-- RESULT -->
     <section id="result-screen" class="screen">
       <div class="result-content">
-        <h2 id="result-title" class="result-title">YOU SURVIVED</h2>
+        <h2 id="result-title" class="result-title lose">CHAINED</h2>
         <p id="result-desc" class="result-desc"></p>
         <div class="result-stats">
+          <div>Rounds Survived: <span id="final-rounds">0</span></div>
           <div>Misses: <span id="final-misses">0/3</span></div>
           <div>Best Streak: <span id="best-streak">0</span></div>
           <div>Total Spams: <span id="total-spams">0</span></div>
-          <div>Avg Bar: <span id="accuracy">0%</span></div>
+          <div>Final Score: <span id="final-score">0</span></div>
+          <div>Max Drain Multiplier: <span id="final-drain">x1.00</span></div>
         </div>
         <div class="menu-buttons">
-          <button id="retry-btn" class="btn primary">TRY AGAIN</button>
+          <button id="retry-btn" class="btn primary">SURVIVE AGAIN</button>
           <button id="menu-return-btn" class="btn">MENU</button>
         </div>
       </div>
@@ -82,10 +86,10 @@
     <!-- SETTINGS -->
     <div id="settings-modal" class="modal">
       <div class="modal-content">
-        <h2>CONFIGURATION</h2>
+        <h2>CONFIGURATION - INFINITE</h2>
         
         <div class="setting-group">
-          <h3>SHAKE - KEPT FOR REALISM</h3>
+          <h3>SHAKE</h3>
           <label class="setting">
             <div class="setting-label">
               <span>Shake Intensity</span>
@@ -95,16 +99,15 @@
           </label>
           <label class="setting checkbox">
             <input type="checkbox" id="shake-enabled" checked>
-            <span>Enable Shake (screen + boxes vibrate)</span>
+            <span>Enable Shake (screen + boxes)</span>
           </label>
-          <p class="small" style="margin-top:8px; opacity:0.6">Bar & key are now locked to center for focus. Only vibration remains.</p>
         </div>
 
         <div class="setting-group">
-          <h3>GAMEPLAY - SIMPLIFIED</h3>
+          <h3>INFINITE GAMEPLAY</h3>
           <label class="setting">
             <div class="setting-label">
-              <span>Max Misses Allowed</span>
+              <span>Max Misses</span>
               <span class="value" id="maxmiss-value">3</span>
             </div>
             <input type="range" id="max-misses" min="1" max="6" value="3">
@@ -112,18 +115,18 @@
 
           <label class="setting">
             <div class="setting-label">
-              <span>Hold Duration per Round</span>
+              <span>Base Hold Duration</span>
               <span class="value" id="hold-value">4.0s</span>
             </div>
-            <input type="range" id="hold-duration" min="2000" max="8000" step="500" value="4000">
+            <input type="range" id="hold-duration" min="2000" max="6000" step="250" value="4000">
           </label>
 
           <label class="setting">
             <div class="setting-label">
-              <span>Bar Drain Speed</span>
+              <span>Base Drain Speed</span>
               <span class="value" id="drain-value">35%</span>
             </div>
-            <input type="range" id="drain-speed" min="10" max="80" value="35">
+            <input type="range" id="drain-speed" min="10" max="70" value="35">
           </label>
 
           <label class="setting">
@@ -136,23 +139,28 @@
 
           <label class="setting">
             <div class="setting-label">
-              <span>Difficulty</span>
+              <span>Starting Difficulty</span>
               <span class="value" id="diff-value">NORMAL</span>
             </div>
             <select id="difficulty">
-              <option value="easy">EASY - Slow drain</option>
+              <option value="easy">EASY - Slow start</option>
               <option value="normal" selected>NORMAL</option>
-              <option value="hard">HARD</option>
-              <option value="chain">CHAIN - Brutal</option>
+              <option value="hard">HARD - Fast from start</option>
+              <option value="chain">CHAIN - Nightmare start</option>
             </select>
           </label>
 
-          <label class="setting">
+          <label class="setting checkbox">
+            <input type="checkbox" id="ramp-enabled" checked>
+            <span>Enable Difficulty Ramping (gets harder each round)</span>
+          </label>
+
+          <label class="setting" id="ramp-speed-setting">
             <div class="setting-label">
-              <span>Rounds to Win</span>
-              <span class="value" id="rounds-value">10</span>
+              <span>Ramp Amount per Round</span>
+              <span class="value" id="ramp-value">+5%</span>
             </div>
-            <input type="range" id="rounds" min="3" max="20" value="10">
+            <input type="range" id="ramp-speed" min="1" max="15" value="5">
           </label>
 
           <label class="setting">
@@ -160,18 +168,19 @@
               <span>Rest Between Rounds</span>
               <span class="value" id="rest-value">1.5s</span>
             </div>
-            <input type="range" id="rest-time" min="500" max="3000" step="100" value="1500">
+            <input type="range" id="rest-time" min="300" max="2500" step="100" value="1500">
           </label>
 
           <label class="setting checkbox">
             <input type="checkbox" id="sound-enabled" checked>
             <span>Enable Sound</span>
           </label>
+          <p class="small" style="margin-top:10px; opacity:0.6">Infinite: No win. When ramping ON, drain +ramp% each round, hold +2% each round. Toggle OFF for constant difficulty.</p>
         </div>
 
         <div class="setting-group">
           <h3>KEYS</h3>
-          <p class="small">All 26 letters A-Z. No space, no symbols.</p>
+          <p class="small">All 26 letters A-Z. Center locked.</p>
           <div class="keys-preview" id="keys-preview"></div>
         </div>
 
@@ -185,20 +194,20 @@
     <!-- HOW TO -->
     <div id="howto-modal" class="modal">
       <div class="modal-content">
-        <h2>HOW TO PLAY - SIMPLIFIED</h2>
+        <h2>INFINITE MODE</h2>
         <div class="howto-content">
-          <p>Realistic bar struggle. Center locked. No distractions.</p>
+          <p>Endless survival. No final win. Only endurance.</p>
           <ol>
-            <li>PLAY → bar + key appear <strong>always in center</strong>.</li>
-            <li>Spam the shown letter <span class="highlight">A-Z</span> to fill bar.</li>
-            <li>Bar drains alone. Keep it alive for <span id="howto-hold">4.0s</span>.</li>
-            <li>If bar empties → <strong>1 miss</strong>. You have <span id="howto-miss">3</span> misses max.</li>
-            <li>Reach <span id="howto-rounds">10</span> rounds without hitting miss limit → win.</li>
-            <li>Shake stays on - boxes vibrate like real Chain fight.</li>
+            <li>Bar + key locked in <strong>center</strong> with realistic metal boxes.</li>
+            <li>Spam <span class="highlight">A-Z</span> to keep bar alive for <span id="howto-hold">4.0s</span>.</li>
+            <li>If bar empties → miss. <span id="howto-miss">3</span> misses = chained.</li>
+            <li>Each round: if ramping ON, drain gets <span id="howto-ramp">+5%</span> harder, hold gets +2% longer. Toggle OFF for same difficulty.</li>
+            <li>Round counter goes <strong>∞</strong>. No end. Score and drain multiplier track progress.</li>
+            <li>Shake stays on for realism.</li>
           </ol>
-          <p class="small">No health bars. Just misses: 0/3 → 1/3 → 2/3 → chained.</p>
+          <p class="small">Goal: Survive as many rounds as possible. Ramping toggle in settings lets you choose constant or escalating hell.</p>
         </div>
-        <button id="howto-close" class="btn primary">UNDERSTOOD</button>
+        <button id="howto-close" class="btn primary">GO INFINITE</button>
       </div>
     </div>
 

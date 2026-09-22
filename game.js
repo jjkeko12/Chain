@@ -1,6 +1,4 @@
-/* CHAIN - BAR QTE SIMPLIFIED
- * No health bars, miss count 0/3, centered, realistic boxes, shake kept
- */
+/* CHAIN - INFINITE BAR QTE with ramp toggle */
 
 const DEFAULT_CONFIG = {
   shakeIntensity: 65,
@@ -10,16 +8,17 @@ const DEFAULT_CONFIG = {
   drainSpeed: 35,
   fillAmount: 12,
   difficulty: 'normal',
-  rounds: 10,
+  rampEnabled: true,
+  rampSpeed: 5,
   restTime: 1500,
   soundEnabled: true,
 };
 
 const DIFFICULTY_MODS = {
-  easy:   { drainMul: 0.6, fillMul: 1.5, holdMul: 0.85, shakeMul: 0.6 },
-  normal: { drainMul: 1.0, fillMul: 1.0, holdMul: 1.0,  shakeMul: 1.0 },
-  hard:   { drainMul: 1.45, fillMul: 0.8, holdMul: 1.2,  shakeMul: 1.4 },
-  chain:  { drainMul: 2.05, fillMul: 0.6, holdMul: 1.4,  shakeMul: 2.0 },
+  easy:   { drainMul: 0.65, fillMul: 1.4, holdMul: 0.9, shakeMul: 0.6 },
+  normal: { drainMul: 1.0,  fillMul: 1.0, holdMul: 1.0, shakeMul: 1.0 },
+  hard:   { drainMul: 1.35, fillMul: 0.85, holdMul: 1.15, shakeMul: 1.35 },
+  chain:  { drainMul: 1.9,  fillMul: 0.65, holdMul: 1.3, shakeMul: 1.9 },
 };
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -33,7 +32,6 @@ let gameState = {
   streak: 0,
   bestStreak: 0,
   round: 1,
-  totalRounds: 10,
   successes: 0,
   failures: 0,
   currentLetter: null,
@@ -50,6 +48,7 @@ let gameState = {
   lastPressTime: 0,
   raf: null,
   intermissionTimer: null,
+  currentDrainMulti: 1.0,
 };
 
 let audioCtx = null;
@@ -62,40 +61,36 @@ const qteContainer = $('#qte-container');
 const feedbackEl = $('#feedback');
 const intermissionEl = $('#intermission');
 const intermissionTimeEl = $('#intermission-time');
+const nextRoundEl = $('#next-round');
 
 const missDotsEl = $('#miss-dots');
 const missCountEl = $('#miss-count');
 const missMaxEl = $('#miss-max');
 const roundEl = $('#round');
+const drainMultiEl = $('#drain-multi');
 const streakEl = $('#streak');
 const spamsEl = $('#spams');
+const scoreEl = $('#score');
 
 const settingsModal = $('#settings-modal');
 const howtoModal = $('#howto-modal');
 
-// Config
 function loadConfig() {
   try {
-    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v3'));
+    const saved = JSON.parse(localStorage.getItem('chain-qte-config-v5'));
     if (saved) config = { ...DEFAULT_CONFIG, ...saved };
   } catch {}
-  // migrate older
+  // migrate v4
   try {
-    const v2 = JSON.parse(localStorage.getItem('chain-qte-config-v2'));
-    if (v2 && !localStorage.getItem('chain-qte-config-v3')) {
-      config.shakeIntensity = v2.shakeIntensity ?? config.shakeIntensity;
-      config.shakeEnabled = v2.shakeEnabled ?? config.shakeEnabled;
-      config.holdDuration = v2.holdDuration ?? config.holdDuration;
-      config.drainSpeed = v2.drainSpeed ?? config.drainSpeed;
-      config.fillAmount = v2.fillAmount ?? config.fillAmount;
-      config.difficulty = v2.difficulty ?? config.difficulty;
-      config.rounds = v2.rounds ?? config.rounds;
-      config.restTime = v2.restTime ?? config.restTime;
-      config.soundEnabled = v2.soundEnabled ?? config.soundEnabled;
+    const v4 = JSON.parse(localStorage.getItem('chain-qte-config-v4'));
+    if (v4 && !localStorage.getItem('chain-qte-config-v5')) {
+      config = { ...DEFAULT_CONFIG, ...v4, rampEnabled: v4.rampSpeed > 0 ? true : false };
+      if (config.rampSpeed === 0) { config.rampEnabled = false; config.rampSpeed = 5; }
     }
   } catch {}
 }
-function saveConfig() { localStorage.setItem('chain-qte-config-v3', JSON.stringify(config)); }
+function saveConfig() { localStorage.setItem('chain-qte-config-v5', JSON.stringify(config)); }
+
 function applyConfigToUI() {
   $('#shake-intensity').value = config.shakeIntensity;
   $('#shake-value').textContent = config.shakeIntensity + '%';
@@ -110,14 +105,20 @@ function applyConfigToUI() {
   $('#fill-value').textContent = config.fillAmount+'%';
   $('#difficulty').value = config.difficulty;
   $('#diff-value').textContent = config.difficulty.toUpperCase();
-  $('#rounds').value = config.rounds;
-  $('#rounds-value').textContent = config.rounds;
+  $('#ramp-enabled').checked = config.rampEnabled;
+  $('#ramp-speed').value = config.rampSpeed;
+  $('#ramp-value').textContent = config.rampEnabled ? '+'+config.rampSpeed+'%' : 'OFF';
+  const rampSetting = $('#ramp-speed-setting');
+  if (rampSetting) {
+    rampSetting.style.opacity = config.rampEnabled ? '1' : '0.4';
+    rampSetting.style.pointerEvents = config.rampEnabled ? 'auto' : 'none';
+  }
   $('#rest-time').value = config.restTime;
   $('#rest-value').textContent = (config.restTime/1000).toFixed(1)+'s';
   $('#sound-enabled').checked = config.soundEnabled;
   $('#howto-hold').textContent = (config.holdDuration/1000).toFixed(1)+'s';
-  $('#howto-rounds').textContent = config.rounds;
   $('#howto-miss').textContent = config.maxMisses;
+  $('#howto-ramp').textContent = config.rampEnabled ? '+'+config.rampSpeed+'%' : 'OFF';
   renderKeysPreview();
 }
 function renderKeysPreview() {
@@ -153,7 +154,6 @@ function triggerScreenShake(intensity=8){
   setTimeout(()=>app.classList.remove('shake-screen'), 260);
 }
 
-// Screens
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   if(name==='menu') menuScreen.classList.add('active');
@@ -168,12 +168,12 @@ function resetGame(){
   gameState.streak=0;
   gameState.bestStreak=0;
   gameState.round=1;
-  gameState.totalRounds=config.rounds;
   gameState.successes=0;
   gameState.failures=0;
   gameState.totalSpams=0;
   gameState.avgBarSum=0;
   gameState.avgBarCount=0;
+  gameState.currentDrainMulti=1.0;
   updateHUD();
   qteContainer.innerHTML='';
   intermissionEl.classList.remove('show');
@@ -186,37 +186,29 @@ function startGame(){
   setTimeout(spawnQTE, 500);
 }
 
-function endGame(win){
+function endGame(){
   gameState.playing=false;
   cancelAnimationFrame(gameState.raf);
   clearInterval(gameState.intermissionTimer);
   qteContainer.innerHTML='';
   intermissionEl.classList.remove('show');
 
-  const title=$('#result-title');
   const desc=$('#result-desc');
+  $('#final-rounds').textContent=gameState.round-1;
   $('#final-misses').textContent=`${gameState.misses}/${gameState.maxMisses}`;
   $('#best-streak').textContent=gameState.bestStreak;
   $('#total-spams').textContent=gameState.totalSpams;
-  const avg = gameState.avgBarCount ? Math.round(gameState.avgBarSum/gameState.avgBarCount) : 0;
-  $('#accuracy').textContent=avg+'%';
+  $('#final-score').textContent=gameState.score;
+  $('#final-drain').textContent='x'+gameState.currentDrainMulti.toFixed(2);
 
-  if(win){
-    title.textContent='YOU ESCAPED';
-    title.className='result-title win';
-    desc.textContent=`You survived ${gameState.successes} rounds with only ${gameState.misses} miss${gameState.misses!==1?'es':''}. ${gameState.totalSpams} spams kept the bar alive.`;
-    sfxSuccess();
-  }else{
-    title.textContent='CHAINED';
-    title.className='result-title lose';
-    desc.textContent=`Missed ${gameState.misses}/${gameState.maxMisses}. You held ${gameState.successes} rounds. The bar drained you.`;
-    sfxFail();
-  }
+  const rampInfo = config.rampEnabled ? `Ramp was ON (+${config.rampSpeed}% per round). Final drain x${gameState.currentDrainMulti.toFixed(2)}.` : `Ramp was OFF - constant difficulty.`;
+  desc.textContent=`Survived ${gameState.round-1} rounds infinite. ${rampInfo} Total spams: ${gameState.totalSpams}. Misses ${gameState.misses}/${gameState.maxMisses}.`;
+
+  sfxFail();
   showScreen('result');
 }
 
 function updateHUD(){
-  // miss dots
   missDotsEl.innerHTML='';
   for(let i=0;i<gameState.maxMisses;i++){
     const dot=document.createElement('div');
@@ -225,12 +217,13 @@ function updateHUD(){
   }
   missCountEl.textContent=gameState.misses;
   missMaxEl.textContent=gameState.maxMisses;
-  roundEl.textContent=`${Math.min(gameState.successes+gameState.failures+1, gameState.totalRounds)}/${gameState.totalRounds}`;
+  roundEl.textContent=gameState.round;
+  drainMultiEl.textContent=gameState.currentDrainMulti.toFixed(2);
   streakEl.textContent=gameState.streak;
   spamsEl.textContent=gameState.spamsThisRound;
+  scoreEl.textContent=gameState.score;
 }
 
-// QTE - centered realistic boxes
 let lastFrameTime=0;
 let lastShakeTime=0;
 
@@ -238,45 +231,54 @@ function spawnQTE(){
   if(!gameState.playing) return;
   const diff = DIFFICULTY_MODS[config.difficulty] || DIFFICULTY_MODS.normal;
 
+  // ramping toggle logic
+  let roundRamp = 1;
+  let holdRamp = 1;
+  if (config.rampEnabled) {
+    const rampFactor = config.rampSpeed / 100;
+    roundRamp = 1 + (gameState.round - 1) * rampFactor;
+    holdRamp = 1 + (gameState.round - 1) * rampFactor * 0.4;
+  }
+  gameState.currentDrainMulti = roundRamp * diff.drainMul;
+
   const letter = LETTERS[Math.floor(Math.random()*LETTERS.length)];
   gameState.currentLetter=letter;
   gameState.barValue=55;
   gameState.spamsThisRound=0;
   gameState.qteActive=true;
   gameState.qteStartTime=performance.now();
-  gameState.holdDuration=config.holdDuration * diff.holdMul;
-  gameState.drainPerSec=config.drainSpeed * diff.drainMul;
-  gameState.fillPerPress=config.fillAmount * diff.fillMul;
+  gameState.holdDuration = config.holdDuration * diff.holdMul * holdRamp;
+  gameState.drainPerSec = config.drainSpeed * diff.drainMul * roundRamp;
+  gameState.fillPerPress = config.fillAmount * diff.fillMul;
 
   qteContainer.innerHTML='';
 
-  // Key box - realistic
   const keyBox=document.createElement('div');
   keyBox.className='qte-key-box';
   keyBox.innerHTML=`
     <div class="bolt-bl"></div><div class="bolt-br"></div>
     <div class="wear"></div>
-    <div class="qte-key-label">SPAM KEY</div>
+    <div class="qte-key-label">SPAM KEY - ROUND ${gameState.round} ${config.rampEnabled ? '∞↗' : '∞'}</div>
     <div class="qte-key-letter" id="qte-letter">${letter}</div>
     <div class="qte-key-hint">MASH ${letter}</div>
   `;
 
-  // Bar box - realistic
   const barBox=document.createElement('div');
   barBox.className='qte-bar-box';
+  const rampLabel = config.rampEnabled ? `HOLD BAR - x${gameState.currentDrainMulti.toFixed(2)} (+${config.rampSpeed}%)` : `HOLD BAR - x${gameState.currentDrainMulti.toFixed(2)} (NO RAMP)`;
   barBox.innerHTML=`
     <div class="bolt-bl"></div><div class="bolt-br"></div>
     <div class="wear"></div>
     <div class="qte-bar-header">
-      <span class="qte-bar-title">HOLD BAR</span>
+      <span class="qte-bar-title">${rampLabel}</span>
       <span class="qte-bar-time" id="qte-time">${(gameState.holdDuration/1000).toFixed(1)}s</span>
     </div>
     <div class="qte-bar-track">
       <div class="qte-bar-fill" id="qte-fill" style="width:${gameState.barValue}%"></div>
       <div class="qte-bar-segments"><div></div><div></div><div></div><div></div></div>
     </div>
-    <div class="qte-bar-footer"><span>EMPTY</span><span>CRITICAL</span><span>SAFE</span></div>
-    <div class="qte-bar-hint" id="bar-hint">KEEP IT ALIVE - SPAM ${letter}</div>
+    <div class="qte-bar-footer"><span>EMPTY</span><span>ROUND ${gameState.round} ${config.rampEnabled ? 'RAMP ON' : 'RAMP OFF'}</span><span>SAFE</span></div>
+    <div class="qte-bar-hint" id="bar-hint">${config.rampEnabled ? `RAMP ${gameState.round===1?'STARTS NOW':'ACTIVE'} - KEEP SPAMMING!` : 'RAMP OFF - CONSTANT DIFFICULTY'}</div>
   `;
 
   qteContainer.appendChild(keyBox);
@@ -285,10 +287,9 @@ function spawnQTE(){
   const fillEl=barBox.querySelector('#qte-fill');
   const timeEl=barBox.querySelector('#qte-time');
 
-  // shake setup - both boxes
   if(config.shakeEnabled){
-    const shakeBase=(config.shakeIntensity/100)*10*diff.shakeMul;
-    const shakeDur=Math.max(0.06, 0.16 - (config.shakeIntensity/100)*0.08);
+    const shakeBase=(config.shakeIntensity/100)*10*diff.shakeMul * (0.8 + (config.rampEnabled ? roundRamp*0.2 : 0));
+    const shakeDur=Math.max(0.05, 0.16 - (config.shakeIntensity/100)*0.08);
     [keyBox, barBox].forEach(el=>{
       el.style.setProperty('--shake-x', shakeBase+'px');
       el.style.setProperty('--shake-y', (shakeBase*0.6)+'px');
@@ -300,13 +301,14 @@ function spawnQTE(){
   lastFrameTime=performance.now();
   lastShakeTime=performance.now();
   sfxSpawn();
+  updateHUD();
 
   function loop(now){
     if(!gameState.qteActive) return;
     const delta = now - lastFrameTime;
     lastFrameTime=now;
-    gameState.qteElapsed = now - gameState.qteStartTime;
-    const remaining = Math.max(0, gameState.holdDuration - gameState.qteElapsed);
+    const elapsed = now - gameState.qteStartTime;
+    const remaining = Math.max(0, gameState.holdDuration - elapsed);
 
     const drainAmount = (gameState.drainPerSec/1000)*delta;
     gameState.barValue = Math.max(0, gameState.barValue - drainAmount);
@@ -318,8 +320,8 @@ function spawnQTE(){
     if(gameState.barValue<25){
       fillEl.className='qte-bar-fill';
       keyBox.classList.add('critical'); barBox.classList.add('critical');
-      if(now - lastShakeTime > 160){
-        triggerScreenShake((config.shakeEnabled? (config.shakeIntensity/100)*12 : 4)*diff.shakeMul);
+      if(now - lastShakeTime > 150){
+        triggerScreenShake((config.shakeEnabled? (config.shakeIntensity/100)*12 : 4)*diff.shakeMul*(config.rampEnabled?roundRamp:1));
         if(Math.random()<0.7) sfxWarn();
         lastShakeTime=now;
       }
@@ -337,14 +339,14 @@ function spawnQTE(){
     timeEl.textContent=(remaining/1000).toFixed(1)+'s';
     if(remaining<1000) timeEl.classList.add('low'); else timeEl.classList.remove('low');
 
-    if(config.shakeEnabled && now - lastShakeTime > 280 + Math.random()*300){
-      const shakeAmt=(config.shakeIntensity/100)*7*diff.shakeMul;
+    if(config.shakeEnabled && now - lastShakeTime > 250 + Math.random()*280){
+      const shakeAmt=(config.shakeIntensity/100)*7*diff.shakeMul* (0.7 + (config.rampEnabled?roundRamp*0.3:0));
       triggerScreenShake(shakeAmt);
       lastShakeTime=now;
     }
 
     if(gameState.barValue<=0){ handleFail(); return; }
-    if(gameState.qteElapsed>=gameState.holdDuration){ handleSuccess(); return; }
+    if(elapsed>=gameState.holdDuration){ handleSuccess(); return; }
 
     gameState.raf=requestAnimationFrame(loop);
   }
@@ -365,22 +367,17 @@ function handleSuccess(){
   gameState.successes++;
   gameState.streak++;
   gameState.bestStreak=Math.max(gameState.bestStreak, gameState.streak);
-  gameState.score+= 150 + Math.floor(gameState.barValue*2) + gameState.spamsThisRound*3 + gameState.streak*15;
+  gameState.score+= Math.floor(150 + gameState.barValue*2 + gameState.spamsThisRound*3 + gameState.streak*15 + gameState.round*10 * gameState.currentDrainMulti);
 
   const keyBox=qteContainer.querySelector('.qte-key-box');
   const barBox=qteContainer.querySelector('.qte-bar-box');
   if(keyBox) keyBox.classList.add('success');
   if(barBox) barBox.classList.add('success');
 
-  showFeedback(['HELD!','SURVIVED!','KEPT!','STRONG!'][Math.floor(Math.random()*4)], true);
+  showFeedback(gameState.round % 5 === 0 ? `ROUND ${gameState.round} CLEARED!` : ['HELD!','KEPT!','STRONG!'][Math.floor(Math.random()*3)], true);
   sfxSuccess();
   updateHUD();
-
-  if(gameState.successes>=gameState.totalRounds){
-    setTimeout(()=>endGame(true), 650);
-  }else{
-    startIntermission();
-  }
+  startIntermission();
 }
 
 function handleFail(){
@@ -397,23 +394,24 @@ function handleFail(){
   if(keyBox) keyBox.classList.add('fail');
   if(barBox) barBox.classList.add('fail');
 
-  showFeedback('MISSED!', false);
+  showFeedback('MISSED! '+gameState.misses+'/'+gameState.maxMisses, false);
   sfxFail();
   const diff=DIFFICULTY_MODS[config.difficulty];
-  const shakeAmt=(config.shakeEnabled? (config.shakeIntensity/100)*18 : 6)*diff.shakeMul;
+  const shakeAmt=(config.shakeEnabled? (config.shakeIntensity/100)*18 : 6)*diff.shakeMul*gameState.currentDrainMulti;
   triggerScreenShake(shakeAmt);
   updateHUD();
 
   if(gameState.misses>=gameState.maxMisses){
-    setTimeout(()=>endGame(false), 650);
+    setTimeout(()=>endGame(), 650);
   }else{
-    startIntermission(true);
+    startIntermission();
   }
 }
 
 function startIntermission(){
   qteContainer.innerHTML='';
   intermissionEl.classList.add('show');
+  nextRoundEl.textContent=gameState.round+1;
   let remaining=config.restTime;
   intermissionTimeEl.textContent=(remaining/1000).toFixed(1);
   const start=performance.now();
@@ -478,7 +476,18 @@ function bindUI(){
   $('#drain-speed').addEventListener('input', (e)=>{ config.drainSpeed=parseInt(e.target.value); $('#drain-value').textContent=config.drainSpeed+'%'; });
   $('#fill-amount').addEventListener('input', (e)=>{ config.fillAmount=parseInt(e.target.value); $('#fill-value').textContent=config.fillAmount+'%'; });
   $('#difficulty').addEventListener('change', (e)=>{ config.difficulty=e.target.value; $('#diff-value').textContent=config.difficulty.toUpperCase(); });
-  $('#rounds').addEventListener('input', (e)=>{ config.rounds=parseInt(e.target.value); $('#rounds-value').textContent=config.rounds; $('#howto-rounds').textContent=config.rounds; });
+  $('#ramp-enabled').addEventListener('change', (e)=>{
+    config.rampEnabled=e.target.checked;
+    const rampSetting=$('#ramp-speed-setting');
+    if(rampSetting){ rampSetting.style.opacity=config.rampEnabled?'1':'0.4'; rampSetting.style.pointerEvents=config.rampEnabled?'auto':'none'; }
+    $('#ramp-value').textContent=config.rampEnabled?'+'+config.rampSpeed+'%':'OFF';
+    $('#howto-ramp').textContent=config.rampEnabled?'+'+config.rampSpeed+'%':'OFF';
+  });
+  $('#ramp-speed').addEventListener('input', (e)=>{
+    config.rampSpeed=parseInt(e.target.value);
+    $('#ramp-value').textContent=config.rampEnabled?'+'+config.rampSpeed+'%':'OFF';
+    $('#howto-ramp').textContent=config.rampEnabled?'+'+config.rampSpeed+'%':'OFF';
+  });
   $('#rest-time').addEventListener('input', (e)=>{ config.restTime=parseInt(e.target.value); $('#rest-value').textContent=(config.restTime/1000).toFixed(1)+'s'; });
   $('#sound-enabled').addEventListener('change', (e)=>{ config.soundEnabled=e.target.checked; });
 
@@ -490,4 +499,4 @@ loadConfig();
 applyConfigToUI();
 bindUI();
 showScreen('menu');
-console.log('CHAIN simplified bar QTE ready', config);
+console.log('CHAIN infinite ramp toggle ready', config);
