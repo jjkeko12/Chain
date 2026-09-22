@@ -1,106 +1,81 @@
-# CHAIN - QTE FIGHT
+# CHAIN - BAR QTE FIGHT (Spam Edition)
 
-A web-based Quick Time Event game inspired by the final fight with **Chain himself** from the Roblox game **Chain**.
+Web QTE game recreating the **real bar struggle** from Roblox **Chain** final fight with Chain himself.
 
-You click PLAY and survive by pressing random letters A-Z before time runs out. Features configurable **shake** and **moving** mechanics just like the original.
+Instead of single press circle, you now **spam a key to keep a draining bar alive** while screen shakes violently.
 
-### Features (Main Build)
+### New Mechanic - Bar QTE (Like Chain)
 
-- **Menu System** with Play / Settings / How To Play
-- **QTE Core Loop**: Random letter A-Z (no space, no symbols) appears with shrinking timer circle
-- **Configurable Shake**: 
-  - Enable/disable toggle
-  - Intensity slider 0-100% → controls shake amplitude + frequency of the QTE prompt
-- **Configurable Moving**:
-  - Enable/disable toggle  
-  - Intensity slider 0-100% → controls drifting speed + bounce randomness of prompt in arena
-- **Gameplay Settings**:
-  - QTE Time Window: 0.5s - 3.0s
-  - Difficulty: Easy / Normal / Hard / CHAIN (insane)
-  - Rounds to Win: 5-25
-  - Sound toggle (WebAudio, no external assets)
-- **Health System**: You vs Chain HP bars
-- **Stats**: Streak, Score, Accuracy, Best Streak
-- Horror aesthetic, screen shake on fail, grain + vignette
+- **Spam Loop**: Random letter A-Z appears. Bar starts at 55% and **constantly drains**.
+- Each correct spam adds fill (configurable). Wrong key = -6% penalty.
+- Must survive `Hold Duration` (e.g. 4.0s) without bar hitting 0%.
+- Then short intermission (`Rest Between Rounds`) → next round, new letter.
+- **Shake**: Both the bar container and screen shake, intensity configurable.
+- **Moving**: Bar drifts/bounces around arena, intensity configurable.
 
-### Tech Stack
+This is 1:1 to Chain: screen shaking, you mashing to keep bar up.
 
-- Vanilla HTML/CSS/JS (no framework) → ultra fast for Vercel
-- Vite for dev/build (optional, static also works)
-- 100% client-side, deployable anywhere
+### Features
 
-### How to Play
+- Menu, HUD (You vs Chain HP), Streak, Score, Spams counter
+- Configurable:
+  - Shake Intensity 0-100% + toggle
+  - Moving Intensity 0-100% + toggle
+  - Hold Duration 2.0s-8.0s
+  - Drain Speed 10-80% (%/sec)
+  - Fill per Spam 5-25%
+  - Difficulty: Easy/Normal/Hard/CHAIN (affects drain/fill/hold/shake/move multipliers)
+  - Rounds 3-20
+  - Rest time 0.5s-3.0s
+- Sound (WebAudio)
+- A-Z only, no space/symbols
+- Result screen with total spams, avg bar
 
-1. Press PLAY
-2. When a letter appears (e.g., **G**), press that letter on keyboard quickly
-3. Success = damage Chain, build streak
-4. Fail/timeout/wrong key = you take damage + screen shake
-5. Survive configured rounds to win
+### Tech
 
-This replicates Chain's fight where the key shakes violently and moves around to disorient you.
+Vanilla HTML/CSS/JS + Vite. No external assets.
 
-### Deploy to GitHub + Vercel
-
-#### 1. Create GitHub Repo
+### Deploy GitHub + Vercel
 
 ```bash
 git init
 git add .
-git commit -m "feat: initial chain qte build with configurable shake & moving"
+git commit -m "feat: bar qte spam like chain"
 git branch -M main
-git remote add origin https://github.com/YOURUSERNAME/chain-qte-fight.git
+git remote add origin https://github.com/YOU/chain-qte-fight.git
 git push -u origin main
 ```
 
-#### 2. Deploy to Vercel
+Vercel: Import repo → Framework Vite → Build `npm run build` → Output `dist` → Deploy.
 
-- Go to https://vercel.com/new
-- Import your GitHub repo
-- Framework Preset: **Vite** (or Other)
-- Build Command: `npm run build` or leave empty for static
-- Output Directory: `dist` (if using Vite) or `/`
-- Deploy → you get a playable URL instantly
+Static also works via `vercel.json`.
 
-**Static deploy also works**: Vercel will serve `index.html` directly with no build step thanks to `vercel.json`.
-
-#### Local Dev
+### Local
 
 ```bash
 npm install
 npm run dev
-# open http://localhost:3000
 ```
 
-### File Structure
+### How to Play
 
-```
-/index.html    -> Main UI (menu, arena, modals)
-/style.css     -> Horror theme, shake animations, QTE visuals
-/game.js       -> All logic: config, QTE spawn, moving physics, input, HUD
-/vercel.json   -> SPA rewrite for Vercel
-/package.json  -> Vite dev
-```
+1. PLAY
+2. Bar appears: e.g. SPAM G
+3. **Mash G fast** to keep bar up
+4. Bar drains alone; if empty you fail and take damage
+5. Survive full duration → damage Chain
+6. Rest, next round
+7. Survive all rounds to escape
 
-### Roadmap - Next Features (After Main Build)
+Tip: Use two fingers alternating for faster spam. On CHAIN difficulty drain is 2.1x.
 
-You said: "once you build the main parts we will go from there to fix bugs and add new features."
+### Files
 
-Ideas ready to add:
-- [ ] Combo sequences (press 3 letters in order)
-- [ ] Chain jumpscare images + sounds
-- [ ] Mobile on-screen keyboard
-- [ ] Leaderboard (localStorage or Supabase)
-- [ ] Skins for Chain
-- [ ] Particle effects on hit
-- [ ] Story intro cutscene
-- [ ] Power-ups (slow-mo, freeze movement)
+- `index.html` - UI
+- `style.css` - Bar visuals, shake, critical effects
+- `game.js` - Spam loop, drain, moving physics, input debounce 35ms
+- `vercel.json`
 
-Tell me what to fix/add next and I'll update the repo.
+### Next
 
-### Config Details
-
-- **Shake Intensity** formula: `shakePx = (intensity/100) * 12 * difficultyMul`
-- **Moving Intensity** formula: `speed = (intensity/100)*3.5*difficultyMul + 0.3 px/frame`
-- Both are exposed in Settings modal and persisted to localStorage (`chain-qte-config`).
-
-Enjoy, and don't let Chain catch you.
+Tell me bugs/features: e.g. progressive drain increase per round, Chain jumpscare, mobile button, etc.

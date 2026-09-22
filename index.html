@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CHAIN - QTE FIGHT</title>
+  <title>CHAIN - BAR QTE FIGHT</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
@@ -11,37 +11,29 @@
 </head>
 <body>
   <div id="app">
-    <!-- Grain overlay -->
     <div class="grain"></div>
     <div class="vignette"></div>
 
-    <!-- MENU SCREEN -->
+    <!-- MENU -->
     <section id="menu-screen" class="screen active">
-      <div class="menu-bg">
-        <div class="chain-links"></div>
-        <div class="chains-silhouette"></div>
-      </div>
-
+      <div class="menu-bg"><div class="chain-links"></div><div class="chains-silhouette"></div></div>
       <div class="menu-content">
         <h1 class="title glitch" data-text="CHAIN">CHAIN</h1>
-        <p class="subtitle">QTE FIGHT // SURVIVE HIM</p>
-        
+        <p class="subtitle">BAR QTE // SPAM TO SURVIVE</p>
         <div class="menu-buttons">
           <button id="play-btn" class="btn primary">▶ PLAY</button>
           <button id="settings-btn" class="btn">⚙ SETTINGS</button>
           <button id="howto-btn" class="btn">? HOW TO PLAY</button>
         </div>
-
         <div class="menu-footer">
-          <p>Inspired by Roblox Chain - Final Fight</p>
-          <p class="small">Press A-Z only. No Space. No Symbols. Just survive.</p>
+          <p>Inspired by Roblox Chain - Final Fight (Bar Struggle)</p>
+          <p class="small">Spam A-Z to keep the bar alive. No Space. No Symbols.</p>
         </div>
       </div>
     </section>
 
-    <!-- GAME SCREEN -->
+    <!-- GAME -->
     <section id="game-screen" class="screen">
-      <!-- HUD -->
       <div class="hud">
         <div class="health-bars">
           <div class="health-group player-hp">
@@ -59,25 +51,24 @@
           <div>STREAK: <span id="streak">0</span></div>
           <div>SCORE: <span id="score">0</span></div>
           <div>ROUND: <span id="round">1/10</span></div>
+          <div style="margin-top:4px; font-size:0.65rem;">SPAMS: <span id="spams">0</span></div>
         </div>
       </div>
 
-      <!-- Arena -->
       <div id="arena" class="arena">
         <div id="chain-entity" class="chain-entity">
           <div class="chain-face">☺</div>
           <div class="chain-body"></div>
         </div>
-        <div id="qte-container" class="qte-container">
-          <!-- QTE prompt injected here -->
-        </div>
+        <div id="qte-container" class="qte-container"></div>
         <div id="feedback" class="feedback"></div>
+        <div id="intermission" class="intermission">NEXT IN <span id="intermission-time">2.0</span></div>
       </div>
 
-      <div class="game-hint">PRESS THE LETTER BEFORE TIME RUNS OUT</div>
+      <div class="game-hint" id="game-hint">SPAM THE LETTER TO KEEP THE BAR ALIVE</div>
     </section>
 
-    <!-- RESULT SCREEN -->
+    <!-- RESULT -->
     <section id="result-screen" class="screen">
       <div class="result-content">
         <h2 id="result-title" class="result-title">YOU SURVIVED</h2>
@@ -85,7 +76,8 @@
         <div class="result-stats">
           <div>Final Score: <span id="final-score">0</span></div>
           <div>Best Streak: <span id="best-streak">0</span></div>
-          <div>Accuracy: <span id="accuracy">0%</span></div>
+          <div>Total Spams: <span id="total-spams">0</span></div>
+          <div>Avg Bar: <span id="accuracy">0%</span></div>
         </div>
         <div class="menu-buttons">
           <button id="retry-btn" class="btn primary">FIGHT AGAIN</button>
@@ -94,13 +86,13 @@
       </div>
     </section>
 
-    <!-- SETTINGS MODAL -->
+    <!-- SETTINGS -->
     <div id="settings-modal" class="modal">
       <div class="modal-content">
         <h2>CONFIGURATION</h2>
         
         <div class="setting-group">
-          <h3>QTE EFFECTS</h3>
+          <h3>QTE EFFECTS (CHAIN AUTHENTIC)</h3>
           <label class="setting">
             <div class="setting-label">
               <span>Shake Intensity</span>
@@ -110,7 +102,7 @@
           </label>
           <label class="setting checkbox">
             <input type="checkbox" id="shake-enabled" checked>
-            <span>Enable Shake (like Chain fight)</span>
+            <span>Enable Shake (screen + bar shakes)</span>
           </label>
 
           <label class="setting">
@@ -122,18 +114,34 @@
           </label>
           <label class="setting checkbox">
             <input type="checkbox" id="move-enabled" checked>
-            <span>Enable Moving / Drifting Keys</span>
+            <span>Enable Moving / Drifting Bar</span>
           </label>
         </div>
 
         <div class="setting-group">
-          <h3>GAMEPLAY</h3>
+          <h3>BAR QTE GAMEPLAY</h3>
           <label class="setting">
             <div class="setting-label">
-              <span>QTE Time Window</span>
-              <span class="value" id="time-value">1.5s</span>
+              <span>Hold Duration (per round)</span>
+              <span class="value" id="hold-value">4.0s</span>
             </div>
-            <input type="range" id="qte-time" min="500" max="3000" step="100" value="1500">
+            <input type="range" id="hold-duration" min="2000" max="8000" step="500" value="4000">
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Bar Drain Speed</span>
+              <span class="value" id="drain-value">35%</span>
+            </div>
+            <input type="range" id="drain-speed" min="10" max="80" value="35">
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Fill per Spam</span>
+              <span class="value" id="fill-value">12%</span>
+            </div>
+            <input type="range" id="fill-amount" min="5" max="25" value="12">
           </label>
 
           <label class="setting">
@@ -142,10 +150,10 @@
               <span class="value" id="diff-value">NORMAL</span>
             </div>
             <select id="difficulty">
-              <option value="easy">EASY - Slow, forgiving</option>
+              <option value="easy">EASY - Slow drain, big fills</option>
               <option value="normal" selected>NORMAL - Chain's pace</option>
               <option value="hard">HARD - Chain is angry</option>
-              <option value="chain">CHAIN - Impossible</option>
+              <option value="chain">CHAIN - Nightmare drain</option>
             </select>
           </label>
 
@@ -154,18 +162,26 @@
               <span>Rounds to Win</span>
               <span class="value" id="rounds-value">10</span>
             </div>
-            <input type="range" id="rounds" min="5" max="25" value="10">
+            <input type="range" id="rounds" min="3" max="20" value="10">
+          </label>
+
+          <label class="setting">
+            <div class="setting-label">
+              <span>Rest Between Rounds</span>
+              <span class="value" id="rest-value">1.5s</span>
+            </div>
+            <input type="range" id="rest-time" min="500" max="3000" step="100" value="1500">
           </label>
 
           <label class="setting checkbox">
             <input type="checkbox" id="sound-enabled" checked>
-            <span>Enable Sound (WebAudio)</span>
+            <span>Enable Sound</span>
           </label>
         </div>
 
         <div class="setting-group">
           <h3>KEYS</h3>
-          <p class="small">All 26 letters A-Z are active. No space, no symbols. As requested.</p>
+          <p class="small">All 26 letters A-Z are valid spam keys. Space & symbols ignored.</p>
           <div class="keys-preview" id="keys-preview"></div>
         </div>
 
@@ -176,30 +192,30 @@
       </div>
     </div>
 
-    <!-- HOW TO MODAL -->
+    <!-- HOW TO -->
     <div id="howto-modal" class="modal">
       <div class="modal-content">
-        <h2>HOW TO FIGHT CHAIN</h2>
+        <h2>HOW TO FIGHT CHAIN - BAR QTE</h2>
         <div class="howto-content">
-          <p>This recreates the final fight from Roblox <strong>CHAIN</strong>.</p>
+          <p>This recreates the <strong>bar struggle</strong> from Roblox <strong>CHAIN</strong> final fight.</p>
           <ol>
-            <li><strong>Click PLAY</strong> to enter the arena.</li>
-            <li>A <span class="highlight">RANDOM LETTER A-Z</span> will appear with a shrinking circle.</li>
-            <li><strong>Press that letter on your keyboard</strong> before time runs out.</li>
-            <li>Success damages CHAIN. Failure damages YOU.</li>
-            <li><strong>Shake:</strong> The prompt violently shakes - intensity is configurable.</li>
-            <li><strong>Moving:</strong> The prompt drifts around the arena - intensity is configurable.</li>
-            <li>Survive <span id="howto-rounds">10</span> rounds to win.</li>
+            <li>Click PLAY. Chain grabs you.</li>
+            <li>A bar appears with a <span class="highlight">RANDOM LETTER A-Z</span> to spam.</li>
+            <li><strong>SPAM that letter as fast as you can</strong> - each press fills the bar a little.</li>
+            <li>The bar <strong>constantly drains</strong> by itself. If it hits 0%, you fail.</li>
+            <li>While you spam, the <strong>screen shakes violently</strong> and the bar <strong>moves/drifts</strong> around (configurable).</li>
+            <li>Survive for <span id="howto-hold">4.0s</span> to complete one round.</li>
+            <li>Rest briefly, then next round starts with a new letter.</li>
+            <li>Survive <span id="howto-rounds">10</span> rounds to escape Chain.</li>
           </ol>
-          <p class="small">Tip: Higher shake + moving = closer to real Chain experience. Try CHAIN difficulty.</p>
-          <p class="small">Keys: Only A-Z accepted. Space and symbols are ignored.</p>
+          <p class="small">Chain tips: Use two fingers alternating on same key for faster spam. On CHAIN difficulty, drain is brutal.</p>
+          <p class="small">Only A-Z counts. Wrong key = small penalty. Spam = life.</p>
         </div>
-        <button id="howto-close" class="btn primary">GOT IT</button>
+        <button id="howto-close" class="btn primary">GOT IT - LET ME SPAM</button>
       </div>
     </div>
 
   </div>
-
   <script type="module" src="./game.js"></script>
 </body>
 </html>
